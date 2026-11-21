@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Auto-CAM | Next-Gen Mission Control</title>
+  <!-- Three.js + OrbitControls + Tailwind CSS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      margin: 0;
+      background-color: #030712;
+      overflow: hidden;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .glass {
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+    }
+    .radar-sweep {
+      background: conic-gradient(from 0deg, rgba(0, 242, 254, 0.3) 0deg, transparent 60deg, transparent 360deg);
+      animation: rotateSweep 2.5s linear infinite;
+    }
+    @keyframes rotateSweep {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="relative w-screen h-screen select-none">
+  <!-- ================= TOP HUD HEADER ================= -->
+  <div class="absolute inset-x-0 top-0 z-20 flex justify-between items-center px-6 py-4 pointer-events-auto">
+    <div class="flex items-center gap-4">
+      <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 flex items-center justify-center text-xl shadow-lg shadow-cyan-500/30">
+        🛰️
+      </div>
+      <div>
+        <h1 class="text-xl font-bold tracking-wider text-white flex items-center gap-2">
+          AUTO-CAM <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 mono">ISRO NETRA PRO</span>
+        </h1>
+        <p class="text-xs text-slate-400 mono">ORBITAL TRAFFIC & COLLISION MITIGATION CONSOLE</p>
+      </div>
+    </div>
+    <!-- Center Hazard Alert -->
+    <div id="status-badge" class="glass px-5 py-2 rounded-full border-red-500/50 text-red-400 flex items-center gap-2.5 animate-pulse">
+      <span class="h-2.5 w-2.5 rounded-full bg-red-500 shadow-lg shadow-red-500"></span>
+      <span class="text-xs font-bold tracking-widest mono">CONJUNCTION HAZARD LEVEL-4 [CRITICAL]</span>
+    </div>
+    <!-- Camera Controls & Audio Toggle -->
+    <div class="flex items-center gap-3">
+      <!-- Camera View Modes -->
+      <div class="glass p-1 rounded-xl flex gap-1 text-xs mono">
+        <button onclick="setCameraView('global')" id="cam-global" class="px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold">🌍 Orbit</button>
+        <button onclick="setCameraView('sat')" id="cam-sat" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">🛰️ Track Sat</button>
+        <button onclick="setCameraView('tca')" id="cam-tca" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">⚠️ Hazard View</button>
+      </div>
+      <!-- Audio Button -->
+      <button onclick="toggleAudio()" id="btn-audio" class="glass h-9 w-9 rounded-xl flex items-center justify-center text-sm text-cyan-400 hover:border-cyan-400 transition">
+        🔊
+      </button>
+    </div>
+  </div>
+  <!-- ================= LEFT & RIGHT PANELS ================= -->
+  <div class="absolute inset-0 z-10 flex justify-between items-center px-6 pointer-events-none">
+    
+    <!-- LEFT PANEL: Telemetry -->
+    <div class="w-84 glass rounded-2xl p-5 pointer-events-auto space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-700/80 pb-2">
+        <span class="text-xs text-slate-400 uppercase mono">Telemetry Stream</span>
+        <span class="text-[10px] text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded mono">LINK 100%</span>
+      </div>
+      <div>
+        <span class="text-xs text-slate-400">Target Asset:</span>
+        <div class="font-bold text-cyan-300 text-sm flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-cyan-400"></span> ISRO EOS-04 (Radar Imaging)
+        </div>
+      </div>
+      <div>
+        <span class="text-xs text-slate-400">Threat Object:</span>
+        <div class="font-bold text-red-400 text-sm flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-red-500"></span> FENGYUN-1C Debris #31421
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2.5 pt-1">
+        <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800">
+          <span class="text-[10px] text-slate-400 mono">MISS DISTANCE</span>
+          <div id="ui-miss" class="text-lg font-bold text-red-400 mono">428.0 m</div>
+          <span class="text-[10px] text-red-500 mono">HAZARD &lt; 1KM</span>
+        </div>
+        <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800">
+          <span class="text-[10px] text-slate-400 mono">RELATIVE VELOCITY</span>
+          <div class="text-lg font-bold text-slate-200 mono">14.28 km/s</div>
+          <span class="text-[10px] text-slate-500 mono">Hypervelocity</span>
+        </div>
+        <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800">
+          <span class="text-[10px] text-slate-400 mono">COLLISION PROB</span>
+          <div class="text-sm font-bold text-red-400 mono">8.74 × 10⁻³</div>
+        </div>
+        <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-800">
+          <span class="text-[10px] text-slate-400 mono">TCA COUNTDOWN</span>
+          <div class="text-sm font-bold text-yellow-400 mono">T-13h 40m</div>
+        </div>
+      </div>
+    </div>
+    <!-- RIGHT PANEL: Live Calculation Controls -->
+    <div class="w-88 glass rounded-2xl p-5 pointer-events-auto space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-700/80 pb-2">
+        <span class="text-xs text-slate-400 uppercase mono">Tsiolkovsky Engine</span>
+        <span class="text-[10px] text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded mono">MATH OPTIMIZER</span>
+      </div>
+      <div>
+        <div class="flex justify-between text-xs text-slate-300 mb-1">
+          <span>Target Clearance:</span>
+          <span id="label-clearance" class="text-cyan-400 font-bold mono">5.0 km</span>
+        </div>
+        <input type="range" id="input-clearance" min="2" max="12" step="0.5" value="5.0" oninput="updateLiveMath()" class="w-full accent-cyan-400 cursor-pointer">
+      </div>
+      <div>
+        <div class="flex justify-between text-xs text-slate-300 mb-1">
+          <span>Satellite Mass:</span>
+          <span id="label-mass" class="text-cyan-400 font-bold mono">1700 kg</span>
+        </div>
+        <input type="range" id="input-mass" min="300" max="3500" step="100" value="1700" oninput="updateLiveMath()" class="w-full accent-cyan-400 cursor-pointer">
+      </div>
+      <!-- Action Button -->
+      <button id="btn-cam" onclick="executeDynamicCAM()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 hover:from-cyan-400 to-emerald-400 text-black font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-cyan-500/25 active:scale-95">
+        ⚡ Calculate Live Fuel & Evasion
+      </button>
+      <!-- Solution Output Card -->
+      <div id="solution-box" class="hidden bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-3 space-y-2">
+        <div class="text-xs text-emerald-300 font-bold flex justify-between mono">
+          <span>✅ MANEUVER SOLVED</span>
+          <span class="text-[10px] bg-emerald-900 px-2 py-0.5 rounded">Δv OPTIMAL</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs mono">
+          <div>
+            <span class="text-[10px] text-slate-400">DELTA-V (Δv):</span>
+            <div id="calc-dv" class="text-emerald-400 font-bold">0.0824 m/s</div>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400">FUEL BURN:</span>
+            <div id="calc-fuel" class="text-yellow-300 font-bold">⛽ 64.80 g</div>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400">BURN TIME:</span>
+            <div id="calc-burn" class="text-slate-200 font-bold">3.4 seconds</div>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400">NEW CLEARANCE:</span>
+            <div id="calc-clearance" class="text-emerald-300 font-bold">5.38 km</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- ================= BOTTOM HUD: RADAR + TERMINAL LOG ================= -->
+  <div class="absolute inset-x-0 bottom-0 z-20 flex justify-between items-end p-6 pointer-events-none">
+    
+    <!-- 2D Tactical Polar Radar -->
+    <div class="glass p-3 rounded-2xl pointer-events-auto flex items-center gap-3">
+      <div class="relative h-24 w-24 rounded-full border border-cyan-500/40 bg-slate-950/90 overflow-hidden flex items-center justify-center">
+        <!-- Radar Grid Rings -->
+        <div class="absolute inset-2 rounded-full border border-cyan-500/20"></div>
+        <div class="absolute inset-5 rounded-full border border-cyan-500/20"></div>
+        <div class="absolute w-full h-[1px] bg-cyan-500/30"></div>
+        <div class="absolute h-full w-[1px] bg-cyan-500/30"></div>
+        <!-- Sweep Animation -->
+        <div class="absolute inset-0 radar-sweep"></div>
+        <!-- Center Target (Satellite) -->
+        <div class="h-2 w-2 rounded-full bg-cyan-400 z-10 shadow-lg shadow-cyan-400"></div>
+        <!-- Threat Blip (Debris) -->
+        <div id="radar-blip" class="absolute top-7 right-8 h-2 w-2 rounded-full bg-red-500 animate-ping"></div>
+      </div>
+      <div class="text-[11px] mono text-slate-400 space-y-1">
+        <div class="text-cyan-400 font-bold">TACTICAL RADAR</div>
+        <div>RANGE: 10 KM</div>
+        <div id="radar-status" class="text-red-400 font-bold">CLOSING: 14.28 KM/S</div>
+      </div>
+    </div>
+    <!-- Live Terminal Event Stream -->
+    <div class="w-96 glass rounded-2xl p-3 pointer-events-auto text-[11px] mono">
+      <div class="flex justify-between items-center text-slate-500 pb-1 border-b border-slate-800">
+        <span>MISSION TELEMETRY LOG</span>
+        <span class="text-emerald-400">● LIVE</span>
+      </div>
+      <div id="terminal-log" class="h-16 overflow-hidden flex flex-col justify-end space-y-0.5 text-slate-300 pt-1">
+        <div>[04:22:10] ISTRAC-BLR: Telemetry linked to EOS-04.</div>
+        <div>[04:22:12] SGP4 Propagator: 300 LEO debris tracked.</div>
+        <div class="text-red-400">[04:22:15] CRITICAL: Conjunction with Debris #31421 detected.</div>
+      </div>
+    </div>
+  </div>
+  <!-- ================= THREE.JS 3D SCENE & ENGINE ================= -->
+  <script>
+    // Audio Telemetry Synthesizer
+    let soundEnabled = true;
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBeep(freq = 880, type = 'sine', duration = 0.12) {
+      if (!soundEnabled) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {}
+    }
+    function toggleAudio() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('btn-audio').innerText = soundEnabled ? '🔊' : '🔇';
+    }
+    // Three.js Setup
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x030712, 0.025);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(14, 10, 16);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    // Lighting
+    const sunLight = new THREE.DirectionalLight(0xffffff, 2.0);
+    sunLight.position.set(25, 12, 20);
+    scene.add(sunLight);
+    scene.add(new THREE.AmbientLight(0x0a192f, 1.5));
+    // 1. Earth Sphere
+    const earthRadius = 5.0;
+    const earth = new THREE.Mesh(
+      new THREE.SphereGeometry(earthRadius, 64, 64),
+      new THREE.MeshPhongMaterial({
+        color: 0x0d2847,
+        emissive: 0x051329,
+        specular: 0x1f4e79,
+        shininess: 30
+      })
+    );
+    scene.add(earth);
+    // Glowing Cyber Grid on Earth
+    const earthWire = new THREE.LineSegments(
+      new THREE.WireframeGeometry(new THREE.SphereGeometry(earthRadius + 0.03, 36, 18)),
+      new THREE.LineBasicMaterial({ color: 0x00f2fe, transparent: true, opacity: 0.18 })
+    );
+    scene.add(earthWire);
+    // Atmosphere Rim Glow
+    scene.add(new THREE.Mesh(
+      new THREE.SphereGeometry(earthRadius + 0.35, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.08, side: THREE.BackSide })
+    ));
+    // 2. Kessler Debris Cloud (300 background debris fragments!)
+    const debrisCloudCount = 300;
+    const debrisGeo = new THREE.BufferGeometry();
+    const debrisPositions = [];
+    for (let i = 0; i < debrisCloudCount; i++) {
+      const radius = 6.8 + Math.random() * 2.8;
+      const u = Math.random();
+      const v = Math.random();
+      const theta = u * 2.0 * Math.PI;
+      const phi = Math.acos(2.0 * v - 1.0);
+      debrisPositions.push(
+        radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.sin(phi) * Math.sin(theta) * 0.4, // Flatter orbital disk
+        radius * Math.cos(phi)
+      );
+    }
+    debrisGeo.setAttribute('position', new THREE.Float32BufferAttribute(debrisPositions, 3));
+    const debrisMat = new THREE.PointsMaterial({ color: 0xef4444, size: 0.25, transparent: true, opacity: 0.45 });
+    const debrisCloud = new THREE.Points(debrisGeo, debrisMat);
+    scene.add(debrisCloud);
+    // 3. Main Satellite Orbit (Cyan)
+    const satPoints = [];
+    for (let i = 0; i <= 100; i++) {
+      const theta = (i / 100) * Math.PI * 2;
+      satPoints.push(new THREE.Vector3(Math.cos(theta) * 8.0, Math.sin(theta) * 3.0, Math.sin(theta) * 8.0));
+    }
+    const satLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(satPoints), new THREE.LineBasicMaterial({ color: 0x00f2fe, linewidth: 2 }));
+    scene.add(satLine);
+    // Satellite Model
+    const satMesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.25), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x00f2fe }));
+    scene.add(satMesh);
+    // 4. Main Threat Debris Orbit (Red)
+    const debPoints = [];
+    for (let i = 0; i <= 100; i++) {
+      const theta = (i / 100) * Math.PI * 2;
+      debPoints.push(new THREE.Vector3(Math.cos(theta) * 7.8, Math.sin(theta) * -4.5, Math.sin(theta) * 7.0));
+    }
+    const debLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(debPoints), new THREE.LineBasicMaterial({ color: 0xff3366, linewidth: 2 }));
+    scene.add(debLine);
+    const debMesh = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 10), new THREE.MeshBasicMaterial({ color: 0xff0044 }));
+    scene.add(debMesh);
+    // Red Pulsing Conjunction Hazard Marker
+    const hazardMarker = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xff0044, wireframe: true })
+    );
+    hazardMarker.position.set(debPoints[25].x, debPoints[25].y, debPoints[25].z);
+    scene.add(hazardMarker);
+    // ================= CAMERA PRESET MODES =================
+    let targetCameraPos = new THREE.Vector3(14, 10, 16);
+    let cameraMode = 'global';
+    function setCameraView(mode) {
+      cameraMode = mode;
+      playBeep(520, 'sine', 0.1);
+      ['global', 'sat', 'tca'].forEach(m => {
+        const btn = document.getElementById('cam-' + m);
+        if (m === mode) {
+          btn.className = "px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 font-bold";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-lg text-slate-400 hover:text-white";
+        }
+      });
+      if (mode === 'global') {
+        targetCameraPos.set(14, 10, 16);
+      } else if (mode === 'sat') {
+        targetCameraPos.copy(satMesh.position).add(new THREE.Vector3(3, 2, 4));
+      } else if (mode === 'tca') {
+        targetCameraPos.copy(hazardMarker.position).add(new THREE.Vector3(2, 2, 3));
+      }
+    }
+    // ================= DYNAMIC MATH & CAM EXECUTION =================
+    function updateLiveMath() {
+      const clearance = parseFloat(document.getElementById('input-clearance').value);
+      const mass = parseFloat(document.getElementById('input-mass').value);
+      document.getElementById('label-clearance').innerText = clearance.toFixed(1) + " km";
+      document.getElementById('label-mass').innerText = mass + " kg";
+    }
+    let safeLine = null;
+    function executeDynamicCAM() {
+      playBeep(660, 'triangle', 0.15);
+      setTimeout(() => playBeep(880, 'sine', 0.25), 120);
+      const targetClearanceKm = parseFloat(document.getElementById('input-clearance').value);
+      const satMassKg = parseFloat(document.getElementById('input-mass').value);
+      const thrusterIsp = 220.0;
+      const g0 = 9.80665;
+      const currentMissKm = 0.428;
+      const separationNeeded = targetClearanceKm - currentMissKm;
+      const deltaV = separationNeeded * 0.018;
+      const fuelKg = satMassKg * (1.0 - Math.exp(-deltaV / (thrusterIsp * g0)));
+      const fuelGrams = fuelKg * 1000.0;
+      const burnDurationSec = (satMassKg * deltaV) / 1.0;
+      // Update UI Output
+      document.getElementById('calc-dv').innerText = deltaV.toFixed(4) + " m/s";
+      document.getElementById('calc-fuel').innerText = "⛽ " + fuelGrams.toFixed(2) + " g";
+      document.getElementById('calc-burn').innerText = burnDurationSec.toFixed(1) + " s";
+      document.getElementById('calc-clearance').innerText = (targetClearanceKm + 0.38).toFixed(2) + " km (SAFE)";
+      document.getElementById('solution-box').classList.remove('hidden');
+      // Draw Green Safe Trajectory
+      if (safeLine) scene.remove(safeLine);
+      const safePoints = [];
+      const orbitExpansion = 8.0 + (targetClearanceKm * 0.09);
+      for (let i = 0; i <= 100; i++) {
+        const theta = (i / 100) * Math.PI * 2;
+        safePoints.push(new THREE.Vector3(Math.cos(theta) * orbitExpansion, Math.sin(theta) * 3.4, Math.sin(theta) * orbitExpansion));
+      }
+      safeLine = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(safePoints),
+        new THREE.LineBasicMaterial({ color: 0x00ff88, linewidth: 3 })
+      );
+      scene.add(safeLine);
+      // Status Green
+      hazardMarker.visible = false;
+      document.getElementById('radar-blip').className = "hidden";
+      document.getElementById('radar-status').innerText = "CLEAR: > 5 KM";
+      document.getElementById('radar-status').className = "text-emerald-400 font-bold";
+      const badge = document.getElementById('status-badge');
+      badge.className = "glass px-5 py-2 rounded-full border-emerald-500/50 text-emerald-400 flex items-center gap-2.5";
+      badge.innerHTML = `<span class="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400"></span><span class="text-xs font-bold tracking-widest mono">COLLISION HAZARD AVERTED (SAFE)</span>`;
+      
+      document.getElementById('ui-miss').innerText = (targetClearanceKm + 0.38).toFixed(2) + " km";
+      document.getElementById('ui-miss').className = "text-lg font-bold text-emerald-400 mono";
+      // Append to Terminal Log
+      const log = document.getElementById('terminal-log');
+      log.innerHTML += `<div class="text-emerald-300 font-bold">[04:22:20] MANEUVER EXECUTED: Δv ${deltaV.toFixed(3)} m/s, Fuel: ${fuelGrams.toFixed(1)}g. Path Clear.</div>`;
+    }
+    // ================= ANIMATION LOOP =================
+    let progress = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      // Rotate Earth & Debris Cloud
+      earth.rotation.y += 0.0015;
+      earthWire.rotation.y += 0.0015;
+      debrisCloud.rotation.y += 0.0006;
+      // Orbit Satellite & Debris
+      progress = (progress + 0.18) % satPoints.length;
+      const idx = Math.floor(progress);
+      satMesh.position.copy(satPoints[idx]);
+      debMesh.position.copy(debPoints[idx]);
+      // Pulse Hazard Marker
+      if (hazardMarker.visible) {
+        const s = 1.0 + Math.sin(Date.now() * 0.008) * 0.35;
+        hazardMarker.scale.set(s, s, s);
+      }
+      // Smooth Camera Transitions (Lerp)
+      if (cameraMode === 'sat') {
+        targetCameraPos.copy(satMesh.position).add(new THREE.Vector3(3, 2, 4));
+        camera.lookAt(satMesh.position);
+      } else if (cameraMode === 'tca') {
+        camera.lookAt(hazardMarker.position);
+      }
+      camera.position.lerp(targetCameraPos, 0.04);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

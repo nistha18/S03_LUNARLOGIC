@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="bg-grad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#111827" />
+      <stop offset="70%" stop-color="#0a0e1a" />
+      <stop offset="100%" stop-color="#030712" />
+    </radialGradient>
+    <!-- Neon Cyan-Emerald Gradient -->
+    <linearGradient id="orbit-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" />
+      <stop offset="50%" stop-color="#4facfe" />
+      <stop offset="100%" stop-color="#00ff88" />
+    </linearGradient>
+    <!-- Glow Filter -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Base Badge Background -->
+  <circle cx="250" cy="250" r="235" fill="url(#bg-grad)" stroke="#1e293b" stroke-width="4" />
+  <circle cx="250" cy="250" r="225" fill="none" stroke="#00f2fe" stroke-width="1.5" stroke-dasharray="6,8" opacity="0.4" />
+  <!-- Background Stars -->
+  <g fill="#94a3b8" opacity="0.6">
+    <circle cx="120" cy="110" r="1.5" />
+    <circle cx="380" cy="130" r="2" />
+    <circle cx="390" cy="360" r="1.5" />
+    <circle cx="140" cy="380" r="1.5" />
+    <circle cx="260" cy="90" r="2" />
+  </g>
+  <!-- Central Planet Earth -->
+  <circle cx="250" cy="250" r="70" fill="#0f172a" stroke="#334155" stroke-width="2" />
+  <ellipse cx="250" cy="250" rx="70" ry="25" fill="none" stroke="#38bdf8" stroke-width="1.5" opacity="0.4" />
+  <ellipse cx="250" cy="250" rx="70" ry="50" fill="none" stroke="#38bdf8" stroke-width="1" opacity="0.25" />
+  <line x1="250" y1="180" x2="250" y2="320" stroke="#38bdf8" stroke-width="1.5" opacity="0.4" />
+  <!-- Green Safe Evasion Arc -->
+  <path d="M 110,320 A 170,110 35 0,1 390,180" fill="none" stroke="#00ff88" stroke-width="4" stroke-linecap="round" filter="url(#glow)" />
+  <path d="M 390,180 L 375,170 M 390,180 L 382,196" fill="none" stroke="#00ff88" stroke-width="3.5" stroke-linecap="round" />
+  <!-- Red Threat Path -->
+  <path d="M 360,330 Q 280,260 170,160" fill="none" stroke="#ff3366" stroke-width="2.5" stroke-dasharray="5,6" opacity="0.7" />
+  <circle cx="280" cy="260" r="4" fill="#ff3366" filter="url(#glow)" />
+  
+  <!-- Primary Orbit Ring -->
+  <ellipse cx="250" cy="250" rx="160" ry="85" transform="rotate(-30 250 250)" fill="none" stroke="url(#orbit-grad)" stroke-width="3" filter="url(#glow)" />
+  <!-- Satellite Graphic -->
+  <g transform="translate(145, 160) rotate(25)" filter="url(#glow)">
+    <rect x="-14" y="-14" width="28" height="28" rx="4" fill="#f8fafc" stroke="#00f2fe" stroke-width="2" />
+    <circle cx="0" cy="0" r="5" fill="#00f2fe" />
+    <!-- Left Solar Wing -->
+    <rect x="-44" y="-9" width="24" height="18" rx="2" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5" />
+    <!-- Right Solar Wing -->
+    <rect x="20" y="-9" width="24" height="18" rx="2" fill="#0284c7" stroke="#38bdf8" stroke-width="1.5" />
+    <!-- Antenna -->
+    <line x1="0" y1="14" x2="0" y2="24" stroke="#00ff88" stroke-width="2" />
+    <circle cx="0" cy="24" r="2.5" fill="#00ff88" />
+  </g>
+  <!-- Typography: AUTO-CAM -->
+  <text x="250" y="415" font-family="'Segoe UI', sans-serif" font-size="34" font-weight="900" fill="#ffffff" letter-spacing="6" text-anchor="middle">
+    AUTO<tspan fill="#00f2fe">-</tspan><tspan fill="#00ff88">CAM</tspan>
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="250" y="440" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="600" fill="#94a3b8" letter-spacing="3" text-anchor="middle">
+    AUTONOMOUS ORBITAL SAFETY ENGINE
+  </text>
+</svg>
